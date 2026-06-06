@@ -8,7 +8,9 @@ enum OutputMode {
   MODE_SNES,
   MODE_PCE,
   MODE_PS2,
-  MODE_GAMECUBE
+  MODE_GAMECUBE,
+
+  MODE_HACK_GENERIC
 };
 
 enum PadButton {

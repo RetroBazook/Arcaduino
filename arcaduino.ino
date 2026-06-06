@@ -11,6 +11,7 @@
 #include "pce.h"
 #include "ps2.h"
 #include "gamecube.h"
+#include "hackpad_generic.h"
 
 USB Usb;
 USBHub Hub(&Usb);
@@ -18,13 +19,14 @@ HIDUniversal Hid(&Usb);
 JoystickEvents JoyEvents;
 JoystickReportParser Joy(&JoyEvents);
 
-OutputMode outputMode = MODE_NEOGEO;
+//OutputMode outputMode = MODE_NEOGEO;
 // OutputMode outputMode = MODE_MD6;
 // OutputMode outputMode = MODE_NES;
 // OutputMode outputMode = MODE_SNES;
 // OutputMode outputMode = MODE_PCE;
 // OutputMode outputMode = MODE_PS2;
 // OutputMode outputMode = MODE_GAMECUBE;
+OutputMode outputMode = MODE_HACK_GENERIC;
 
 OutputMode getOutputMode() {
   return outputMode;
@@ -34,6 +36,7 @@ const char* buttonName(int index) {
   if (outputMode == MODE_MD6) return MegaDrive::buttonName(index);
   if (outputMode == MODE_PCE) return PCE::buttonName(index);
   if (outputMode == MODE_NES || outputMode == MODE_SNES) return SNES::buttonName(index);
+  if (outputMode == MODE_HACK_GENERIC) return HackPadGeneric::buttonName(index);
   return NeoGeo::buttonName(index);
 }
 
@@ -43,7 +46,10 @@ void setup() {
 
   Serial.println("Start");
 
-  if (outputMode == MODE_NEOGEO) {
+  if (outputMode == MODE_HACK_GENERIC) {
+    HackPadGeneric::init();
+    Serial.println("Output mode: Hackpad");
+  } else if (outputMode == MODE_NEOGEO) {
     NeoGeo::init();
     Serial.println("Output mode: NeoGeo");
   } else if (outputMode == MODE_MD6) {
@@ -85,7 +91,9 @@ void loop() {
   updateDebounce();
   updateTurbo();
 
-  if (outputMode == MODE_NEOGEO) {
+  if (outputMode == MODE_HACK_GENERIC) {
+    HackPadGeneric::apply();
+  } else if (outputMode == MODE_NEOGEO) {
     NeoGeo::apply();
   } else if (outputMode == MODE_MD6) {
     MegaDrive::apply6();
