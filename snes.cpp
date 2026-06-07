@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "pad_state.h"
+#include "mapping_manager.h"
 #include "snes.h"
 
 namespace SNES {
@@ -23,30 +24,30 @@ uint16_t buildReport() {
   uint16_t r = 0xFFFF;
 
   // SNES order: B,Y,Select,Start,Up,Down,Left,Right,A,X,L,R,1,1,1,1
-  if (wanted[PAD_L_1]) r &= ~(1 << 0);  // B
-  if (wanted[PAD_H_2]) r &= ~(1 << 1);  // Y
-  if (wanted[PAD_SELECT]) r &= ~(1 << 2);
-  if (wanted[PAD_START]) r &= ~(1 << 3);
-  if (wanted[PAD_UP]) r &= ~(1 << 4);
-  if (wanted[PAD_DOWN]) r &= ~(1 << 5);
-  if (wanted[PAD_LEFT]) r &= ~(1 << 6);
-  if (wanted[PAD_RIGHT]) r &= ~(1 << 7);
-  if (wanted[PAD_L_2]) r &= ~(1 << 8);  // A
-  if (wanted[PAD_H_1]) r &= ~(1 << 9);  // X
-  if (wanted[PAD_H_3]) r &= ~(1 << 10); // L
-  if (wanted[PAD_L_3]) r &= ~(1 << 11); // R
+  if (MappingManager::pressed(PAD_L_1)) r &= ~(1 << 0);  // B
+  if (MappingManager::pressed(PAD_H_2)) r &= ~(1 << 1);  // Y
+  if (MappingManager::pressed(PAD_SELECT)) r &= ~(1 << 2);
+  if (MappingManager::pressed(PAD_START)) r &= ~(1 << 3);
+  if (MappingManager::pressed(PAD_UP)) r &= ~(1 << 4);
+  if (MappingManager::pressed(PAD_DOWN)) r &= ~(1 << 5);
+  if (MappingManager::pressed(PAD_LEFT)) r &= ~(1 << 6);
+  if (MappingManager::pressed(PAD_RIGHT)) r &= ~(1 << 7);
+  if (MappingManager::pressed(PAD_L_2)) r &= ~(1 << 8);  // A
+  if (MappingManager::pressed(PAD_H_1)) r &= ~(1 << 9);  // X
+  if (MappingManager::pressed(PAD_H_3)) r &= ~(1 << 10); // L
+  if (MappingManager::pressed(PAD_L_3)) r &= ~(1 << 11); // R
 
   if (!isSnes) {
     // NES reads first 8 bits: A,B,Select,Start,Up,Down,Left,Right.
     r = 0xFFFF;
-    if (wanted[PAD_L_2]) r &= ~(1 << 0);  // A
-    if (wanted[PAD_L_1]) r &= ~(1 << 1);  // B
-    if (wanted[PAD_SELECT]) r &= ~(1 << 2);
-    if (wanted[PAD_START]) r &= ~(1 << 3);
-    if (wanted[PAD_UP]) r &= ~(1 << 4);
-    if (wanted[PAD_DOWN]) r &= ~(1 << 5);
-    if (wanted[PAD_LEFT]) r &= ~(1 << 6);
-    if (wanted[PAD_RIGHT]) r &= ~(1 << 7);
+    if (MappingManager::pressed(PAD_L_2)) r &= ~(1 << 0);  // A
+    if (MappingManager::pressed(PAD_L_1)) r &= ~(1 << 1);  // B
+    if (MappingManager::pressed(PAD_SELECT)) r &= ~(1 << 2);
+    if (MappingManager::pressed(PAD_START)) r &= ~(1 << 3);
+    if (MappingManager::pressed(PAD_UP)) r &= ~(1 << 4);
+    if (MappingManager::pressed(PAD_DOWN)) r &= ~(1 << 5);
+    if (MappingManager::pressed(PAD_LEFT)) r &= ~(1 << 6);
+    if (MappingManager::pressed(PAD_RIGHT)) r &= ~(1 << 7);
   }
 
   return r;

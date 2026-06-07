@@ -2,9 +2,9 @@
 #include "pce.h"
 #include "megadrive.h"
 
-bool rawWanted[PAD_BUTTON_COUNT] = {false};
 bool wanted[PAD_BUTTON_COUNT] = {false};
-bool menuWanted[PAD_BUTTON_COUNT] = {false};
+static bool rawWanted[PAD_BUTTON_COUNT] = {false};
+static bool menuWanted[PAD_BUTTON_COUNT] = {false};
 
 unsigned long downStartTime[PAD_BUTTON_COUNT] = {0};
 const unsigned long minPressMs = 15;
@@ -80,8 +80,6 @@ void updateDebounce() {
     if (rawWanted[i] && !wanted[i]) {
       if (now - downStartTime[i] >= minPressMs) {
         wanted[i] = true;
-        Serial.print("[VALID PRESS] ");
-        Serial.println(buttonName(i));
       }
     }
   }

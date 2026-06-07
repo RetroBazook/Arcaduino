@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "pad_state.h"
+#include "mapping_manager.h"
 #include "megadrive.h"
 
 namespace MegaDrive {
@@ -93,30 +94,30 @@ void apply6() {
 
   if (mdPadMode == MD_3_BUTTONS) {
     // Top row = turbo equivalent of the bottom row.
-    mdA = turboPressed(wanted[PAD_L_1], wanted[PAD_H_1]);
-    mdB = turboPressed(wanted[PAD_L_2], wanted[PAD_H_2]);
-    mdC = turboPressed(wanted[PAD_L_3], wanted[PAD_H_3]);
+    mdA = turboPressed(MappingManager::pressed(PAD_L_1), MappingManager::pressed(PAD_H_1));
+    mdB = turboPressed(MappingManager::pressed(PAD_L_2), MappingManager::pressed(PAD_H_2));
+    mdC = turboPressed(MappingManager::pressed(PAD_L_3), MappingManager::pressed(PAD_H_3));
   } else {
-    mdA = wanted[PAD_L_1];
-    mdB = wanted[PAD_L_2];
-    mdC = wanted[PAD_L_3];
+    mdA = MappingManager::pressed(PAD_L_1);
+    mdB = MappingManager::pressed(PAD_L_2);
+    mdC = MappingManager::pressed(PAD_L_3);
   }
 
-  bool mdX = wanted[PAD_H_1];
-  bool mdY = wanted[PAD_H_2];
-  bool mdZ = wanted[PAD_H_3];
-  bool mdStart = wanted[PAD_START];
-  bool mdMode = wanted[PAD_SELECT];
+  bool mdX = MappingManager::pressed(PAD_H_1);
+  bool mdY = MappingManager::pressed(PAD_H_2);
+  bool mdZ = MappingManager::pressed(PAD_H_3);
+  bool mdStart = MappingManager::pressed(PAD_START);
+  bool mdMode = MappingManager::pressed(PAD_SELECT);
 
   bool sixButtonPhase = (mdPadMode == MD_6_BUTTONS && thStep >= 5);
 
   if (th == HIGH) {
     if (!sixButtonPhase) {
       // Normal phase: U D L R B C
-      setLine(MD_UP_PIN, wanted[PAD_UP]);
-      setLine(MD_DOWN_PIN, wanted[PAD_DOWN]);
-      setLine(MD_LEFT_PIN, wanted[PAD_LEFT]);
-      setLine(MD_RIGHT_PIN, wanted[PAD_RIGHT]);
+      setLine(MD_UP_PIN, MappingManager::pressed(PAD_UP));
+      setLine(MD_DOWN_PIN, MappingManager::pressed(PAD_DOWN));
+      setLine(MD_LEFT_PIN, MappingManager::pressed(PAD_LEFT));
+      setLine(MD_RIGHT_PIN, MappingManager::pressed(PAD_RIGHT));
       setLine(MD_6_PIN, mdB);
       setLine(MD_9_PIN, mdC);
     } else {
@@ -131,8 +132,8 @@ void apply6() {
   } else {
     if (!sixButtonPhase) {
       // Normal phase: U D 0 0 A START
-      setLine(MD_UP_PIN, wanted[PAD_UP]);
-      setLine(MD_DOWN_PIN, wanted[PAD_DOWN]);
+      setLine(MD_UP_PIN, MappingManager::pressed(PAD_UP));
+      setLine(MD_DOWN_PIN, MappingManager::pressed(PAD_DOWN));
       setLine(MD_LEFT_PIN, true);
       setLine(MD_RIGHT_PIN, true);
       setLine(MD_6_PIN, mdA);

@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "pad_state.h"
+#include "mapping_manager.h"
 #include "pce.h"
 
 namespace PCE {
@@ -156,10 +157,10 @@ void apply() {
     } else {
       // Extra buttons on SEL LOW:
       // D3 VI, D2 V, D1 IV, D0 III.
-      bool btnIII = wanted[PAD_L_1];
-      bool btnIV  = wanted[PAD_H_1];
-      bool btnV   = wanted[PAD_H_2];
-      bool btnVI  = wanted[PAD_H_3];
+      bool btnIII = MappingManager::pressed(PAD_L_1);
+      bool btnIV  = MappingManager::pressed(PAD_H_1);
+      bool btnV   = MappingManager::pressed(PAD_H_2);
+      bool btnVI  = MappingManager::pressed(PAD_H_3);
 
       setNibble(btnIII, btnIV, btnV, btnVI);
     }
@@ -171,45 +172,45 @@ void apply() {
     // Directions:
     // D3 LEFT, D2 DOWN, D1 RIGHT, D0 UP.
     setNibble(
-      wanted[PAD_UP],
-      wanted[PAD_RIGHT],
-      wanted[PAD_DOWN],
-      wanted[PAD_LEFT]
+      MappingManager::pressed(PAD_UP),
+      MappingManager::pressed(PAD_RIGHT),
+      MappingManager::pressed(PAD_DOWN),
+      MappingManager::pressed(PAD_LEFT)
     );
   } else {
     // Normal buttons:
     // D3 RUN, D2 SELECT, D1 II, D0 I.
     bool btnI;
     bool btnII;
-    bool btnRun = wanted[PAD_START];
-    bool btnSelect = wanted[PAD_SELECT];
+    bool btnRun = MappingManager::pressed(PAD_START);
+    bool btnSelect = MappingManager::pressed(PAD_SELECT);
 
     if (pceMode == PCE_6_BUTTONS) {
       // In 6-button mode:
       // PAD_L_3 -> I
       // PAD_L_2 -> II
       // PAD_L_1 -> III in extra scan
-      btnI = wanted[PAD_L_3];
-      btnII = wanted[PAD_L_2];
+      btnI = MappingManager::pressed(PAD_L_3);
+      btnII = MappingManager::pressed(PAD_L_2);
     } else {
       // In 2/3-button mode:
       // bottom row = normal buttons
       // top row = turbo equivalent.
       btnI = turboPressed(
-        wanted[PAD_L_3],
-        wanted[PAD_H_3]
+        MappingManager::pressed(PAD_L_3),
+        MappingManager::pressed(PAD_H_3)
       );
 
       btnII = turboPressed(
-        wanted[PAD_L_2],
-        wanted[PAD_H_2]
+        MappingManager::pressed(PAD_L_2),
+        MappingManager::pressed(PAD_H_2)
       );
 
       if (pceMode == PCE_3_BUTTONS) {
         // III mapped on SELECT line.
         btnSelect = btnSelect || turboPressed(
-          wanted[PAD_L_1],
-          wanted[PAD_H_1]
+          MappingManager::pressed(PAD_L_1),
+          MappingManager::pressed(PAD_H_1)
         );
       }
     }

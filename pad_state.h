@@ -35,9 +35,8 @@ enum PadButton {
   PAD_BUTTON_COUNT
 };
 
-extern bool rawWanted[PAD_BUTTON_COUNT];
+// RAM optimized bitfields stored internally
 extern bool wanted[PAD_BUTTON_COUNT];
-extern bool menuWanted[PAD_BUTTON_COUNT];
 extern bool turboState;
 
 OutputMode getOutputMode();
