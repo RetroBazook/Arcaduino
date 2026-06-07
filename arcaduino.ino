@@ -85,6 +85,34 @@ void setup() {
   }
 }
 
+void sendObsState()
+{
+  static unsigned long lastSend = 0;
+
+  if (millis() - lastSend < 16) return; // ~60 FPS
+  lastSend = millis();
+
+  Serial.print("{");
+
+  Serial.print("\"up\":"); Serial.print(wanted[PAD_UP]);
+  Serial.print(",\"down\":"); Serial.print(wanted[PAD_DOWN]);
+  Serial.print(",\"left\":"); Serial.print(wanted[PAD_LEFT]);
+  Serial.print(",\"right\":"); Serial.print(wanted[PAD_RIGHT]);
+
+  Serial.print(",\"b1\":"); Serial.print(wanted[PAD_L_1]);
+  Serial.print(",\"b2\":"); Serial.print(wanted[PAD_L_2]);
+  Serial.print(",\"b3\":"); Serial.print(wanted[PAD_L_3]);
+
+  Serial.print(",\"b4\":"); Serial.print(wanted[PAD_H_1]);
+  Serial.print(",\"b5\":"); Serial.print(wanted[PAD_H_2]);
+  Serial.print(",\"b6\":"); Serial.print(wanted[PAD_H_3]);
+
+  Serial.print(",\"start\":"); Serial.print(wanted[PAD_START]);
+  Serial.print(",\"select\":"); Serial.print(wanted[PAD_SELECT]);
+
+  Serial.println("}");
+}
+
 void loop() {
   Usb.Task();
 
@@ -106,4 +134,6 @@ void loop() {
   } else if (outputMode == MODE_GAMECUBE) {
     GameCube::apply();
   }
+
+  sendObsState();
 }
