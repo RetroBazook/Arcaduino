@@ -60,6 +60,11 @@ uint8_t resetBlinkCount = 0;
 unsigned long resetBlinkLast = 0;
 const unsigned long resetBlinkInterval = 100;
 
+bool isRemapping()
+{
+  return remapMode;
+}
+
 bool rawPressed(uint8_t physicalButton)
 {
   if (physicalButton >= PAD_BUTTON_COUNT) {

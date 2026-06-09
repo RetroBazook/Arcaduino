@@ -12,6 +12,7 @@
 #include "ps2.h"
 #include "gamecube.h"
 #include "hackpad_generic.h"
+#include "mapping_manager.h"
 
 USB Usb;
 USBHub Hub(&Usb);
@@ -118,6 +119,8 @@ void loop() {
 
   updateDebounce();
   updateTurbo();
+
+  if (MappingManager::isRemapping()) return;
 
   if (outputMode == MODE_HACK_GENERIC) {
     HackPadGeneric::apply();

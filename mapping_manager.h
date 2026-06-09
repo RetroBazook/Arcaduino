@@ -18,5 +18,6 @@ bool rawPressed(uint8_t physicalButton);
 const char* padName(uint8_t pad);
 const char* outputName(uint8_t outputButton);
 void printCurrentMapping();
+bool isRemapping();
 
 }

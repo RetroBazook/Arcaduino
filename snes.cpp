@@ -10,25 +10,31 @@ namespace SNES {
 #define SNES_DATA_PIN  4
 
 static constexpr uint8_t REPORT_BITS = 16;
+static constexpr uint8_t DATA_MASK = _BV(PD4); // D4 = PD4 sur ATmega328P
 
-bool isSnes = true;
-uint16_t shiftReg = 0xFFFF;
-uint8_t bitIndex = 0;
+volatile bool isSnes = true;
+volatile uint16_t shiftReg = 0xFFFF;
+volatile uint16_t cachedReport = 0xFFFF;
+volatile uint8_t bitIndex = 0;
 
-bool lastLatch = LOW;
-bool lastClock = HIGH;
+static inline void dataLow() {
+  PORTD &= ~DATA_MASK;
+  DDRD  |= DATA_MASK;
+}
 
-void writeDataBit(bool releasedHigh) {
-  // true  = released / HIGH / Hi-Z
-  // false = pressed / LOW
-  setLine(SNES_DATA_PIN, !releasedHigh);
+static inline void dataRelease() {
+  DDRD &= ~DATA_MASK;
+}
+
+static inline void writeDataBitFast(bool releasedHigh) {
+  if (releasedHigh) dataRelease();
+  else dataLow();
 }
 
 uint16_t buildReport() {
   uint16_t r = 0xFFFF;
 
   if (isSnes) {
-    // SNES: B,Y,Select,Start,Up,Down,Left,Right,A,X,L,R,1,1,1,1
     if (MappingManager::pressed(PAD_L_1))    r &= ~(1 << 0);   // B
     if (MappingManager::pressed(PAD_H_2))    r &= ~(1 << 1);   // Y
     if (MappingManager::pressed(PAD_SELECT)) r &= ~(1 << 2);
@@ -42,7 +48,6 @@ uint16_t buildReport() {
     if (MappingManager::pressed(PAD_H_3))    r &= ~(1 << 10);  // L
     if (MappingManager::pressed(PAD_L_3))    r &= ~(1 << 11);  // R
   } else {
-    // NES: A,B,Select,Start,Up,Down,Left,Right,1,1,1,1,1,1,1,1
     if (MappingManager::pressed(PAD_L_2))    r &= ~(1 << 0);   // A
     if (MappingManager::pressed(PAD_L_1))    r &= ~(1 << 1);   // B
     if (MappingManager::pressed(PAD_SELECT)) r &= ~(1 << 2);
@@ -56,46 +61,46 @@ uint16_t buildReport() {
   return r;
 }
 
+// LATCH falling edge => first bit
+void onLatchFall() {
+  shiftReg = cachedReport;
+  bitIndex = 0;
+  writeDataBitFast(shiftReg & 1);
+}
+
+// CLOCK rising edge => next bit
+void onClockRise() {
+  bitIndex++;
+
+  if (bitIndex < REPORT_BITS) {
+    writeDataBitFast((shiftReg >> bitIndex) & 1);
+  } else {
+    writeDataBitFast(false); // DATA LOW après 16 bits
+  }
+}
+
 void init(bool snesMode) {
   isSnes = snesMode;
 
   pinMode(SNES_LATCH_PIN, INPUT);
   pinMode(SNES_CLOCK_PIN, INPUT);
 
-  // DATA released/high before first poll
-  writeDataBit(true);
+  dataRelease();
 
   shiftReg = 0xFFFF;
+  cachedReport = 0xFFFF;
   bitIndex = 0;
 
-  lastLatch = digitalRead(SNES_LATCH_PIN);
-  lastClock = digitalRead(SNES_CLOCK_PIN);
+  attachInterrupt(digitalPinToInterrupt(SNES_LATCH_PIN), onLatchFall, FALLING);
+  attachInterrupt(digitalPinToInterrupt(SNES_CLOCK_PIN), onClockRise, RISING);
 }
 
 void apply() {
-  const bool latch = digitalRead(SNES_LATCH_PIN);
-  const bool clock = digitalRead(SNES_CLOCK_PIN);
+  uint16_t report = buildReport();
 
-  // LATCH falling edge => first bit
-  if (!latch && lastLatch) {
-    shiftReg = buildReport();
-    bitIndex = 0;
-    writeDataBit((shiftReg >> bitIndex) & 1);
-  }
-
-  // CLOCK rising edge => next bit
-  if (!latch && lastClock == LOW && clock == HIGH) {
-    bitIndex++;
-
-    if (bitIndex < REPORT_BITS) {
-      writeDataBit((shiftReg >> bitIndex) & 1);
-    } else {
-      writeDataBit(false); // DATA LOW après 16 bits
-    }
-  }
-
-  lastLatch = latch;
-  lastClock = clock;
+  noInterrupts();
+  cachedReport = report;
+  interrupts();
 }
 
 const char* buttonName(int index) {
