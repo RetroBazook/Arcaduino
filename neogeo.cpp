@@ -38,7 +38,10 @@ void apply()
 {
   setLine(NG_UP_PIN, MappingManager::pressed(PAD_UP));
   setLine(NG_DOWN_PIN, MappingManager::pressed(PAD_DOWN));
-  setLine(NG_LEFT_PIN, MappingManager::pressed(PAD_LEFT));
+  // Diagnostic: the field "b2" printed by sendObsState() is PAD_L_2.
+  // Make that exact physical input activate LEFT as well.
+  setLine(NG_LEFT_PIN, MappingManager::pressed(PAD_LEFT) ||
+                       MappingManager::rawPressed(PAD_L_2));
   setLine(NG_RIGHT_PIN, MappingManager::pressed(PAD_RIGHT));
 
   setLine(NG_A_PIN, MappingManager::pressed(PAD_H_1));

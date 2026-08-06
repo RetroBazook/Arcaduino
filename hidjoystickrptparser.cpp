@@ -10,8 +10,12 @@ oldButtons(0)
 
 void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 {
-  // Ignore incomplete reports instead of reading beyond the received buffer.
-  if (!buf || len < RPT_GEMEPAD_LEN) return;
+  if (!buf || len == 0) return;
+
+  // Raw HID diagnostics removed in the normal build.
+
+  // Ignore incomplete reports for the legacy 5-byte parser.
+  if (len < RPT_GEMEPAD_LEN) return;
 
   bool match = true;
 
@@ -27,16 +31,35 @@ void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8
     for (uint8_t i = 0; i < RPT_GEMEPAD_LEN; i++) oldPad[i] = buf[i];
   }
 
-  // Many generic USB pads expose the D-pad as a POV/hat in the low
-  // nibble of byte 5.  The previous implementation detected it but the
-  // callback was empty, so the cross never reached pad_state.
-  if (len >= 6) {
-    uint8_t hat = buf[5] & 0x0F;
+  // D-pad / POV hat handling.
+  //
+  // The original controller placed the hat in the low nibble of byte 5.
+  // The newly tested 8-byte controller places it in byte 2 instead:
+  //   0=N, 2=E, 4=S, 6=W, 15=neutral.
+  // Prefer byte 2 for that 8-byte report layout, while retaining the
+  // byte-5 fallback for older controllers.
+  bool hasHat = false;
+  uint8_t hat = 0x0F;
 
-    if (hat != oldHat && joyEvents) {
-      joyEvents->OnHatSwitch(hat);
-      oldHat = hat;
+  if (len >= 8) {
+    const uint8_t candidate = buf[2] & 0x0F;
+    if (candidate <= 7 || candidate == 0x0F) {
+      hat = candidate;
+      hasHat = true;
     }
+  }
+
+  if (!hasHat && len >= 6) {
+    const uint8_t candidate = buf[5] & 0x0F;
+    if (candidate <= 8 || candidate == 0x0F) {
+      hat = candidate;
+      hasHat = true;
+    }
+  }
+
+  if (hasHat && hat != oldHat && joyEvents) {
+    joyEvents->OnHatSwitch(hat);
+    oldHat = hat;
   }
 
   // The optional generic HID button field uses bytes 5 and 6.
