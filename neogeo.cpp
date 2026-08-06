@@ -13,7 +13,7 @@ namespace NeoGeo {
 #define NG_A_PIN       6
 #define NG_B_PIN       7
 #define NG_C_PIN       8
-#define NG_D_PIN       9
+#define NG_D_PIN       A2
 
 #define NG_START_PIN   A0
 #define NG_SELECT_PIN  A1
@@ -38,10 +38,7 @@ void apply()
 {
   setLine(NG_UP_PIN, MappingManager::pressed(PAD_UP));
   setLine(NG_DOWN_PIN, MappingManager::pressed(PAD_DOWN));
-  // Diagnostic: the field "b2" printed by sendObsState() is PAD_L_2.
-  // Make that exact physical input activate LEFT as well.
-  setLine(NG_LEFT_PIN, MappingManager::pressed(PAD_LEFT) ||
-                       MappingManager::rawPressed(PAD_L_2));
+  setLine(NG_LEFT_PIN, MappingManager::pressed(PAD_LEFT));
   setLine(NG_RIGHT_PIN, MappingManager::pressed(PAD_RIGHT));
 
   setLine(NG_A_PIN, MappingManager::pressed(PAD_H_1));
