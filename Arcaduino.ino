@@ -1,7 +1,7 @@
+#include <SPI.h>
 #include <usbhid.h>
 #include <hiduniversal.h>
 #include <usbhub.h>
-#include <SPI.h>
 
 #include "hidjoystickrptparser.h"
 #include "pad_state.h"
@@ -17,17 +17,18 @@
 USB Usb;
 USBHub Hub(&Usb);
 HIDUniversal Hid(&Usb);
+
 JoystickEvents JoyEvents;
 JoystickReportParser Joy(&JoyEvents);
 
-//OutputMode outputMode = MODE_NEOGEO;
-// OutputMode outputMode = MODE_MD6;
-// OutputMode outputMode = MODE_NES;
-// OutputMode outputMode = MODE_SNES;
-// OutputMode outputMode = MODE_PCE;
-// OutputMode outputMode = MODE_PS2;
-// OutputMode outputMode = MODE_GAMECUBE;
-OutputMode outputMode = MODE_HACK_GENERIC;
+OutputMode outputMode = MODE_NEOGEO;
+//OutputMode outputMode = MODE_MD6;
+//OutputMode outputMode = MODE_NES;
+//OutputMode outputMode = MODE_SNES;
+//OutputMode outputMode = MODE_PCE;
+//OutputMode outputMode = MODE_PS2;
+//OutputMode outputMode = MODE_GAMECUBE;
+//OutputMode outputMode = MODE_HACK_GENERIC;
 
 OutputMode getOutputMode() {
   return outputMode;
@@ -41,12 +42,7 @@ const char* buttonName(int index) {
   return NeoGeo::buttonName(index);
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-
-  Serial.println("Start");
-
+void initOutput() {
   if (outputMode == MODE_HACK_GENERIC) {
     HackPadGeneric::init();
     Serial.println("Output mode: Hackpad");
@@ -71,57 +67,13 @@ void setup() {
   } else if (outputMode == MODE_GAMECUBE) {
     GameCube::init();
     Serial.println("Output mode: GameCube skeleton");
-  }
-
-  if (Usb.Init() == -1) {
-    Serial.println("OSC did not start.");
-    while (1);
-  }
-
-  Serial.println("USB Host Shield OK");
-  delay(200);
-
-  if (!Hid.SetReportParser(0, &Joy)) {
-    ErrorMessage<uint8_t>(PSTR("SetReportParser"), 1);
+  } else {
+    NeoGeo::init();
+    Serial.println("Output mode: fallback NeoGeo");
   }
 }
 
-void sendObsState()
-{
-  static unsigned long lastSend = 0;
-
-  if (millis() - lastSend < 16) return; // ~60 FPS
-  lastSend = millis();
-
-  Serial.print("{");
-
-  Serial.print("\"up\":"); Serial.print(wanted[PAD_UP]);
-  Serial.print(",\"down\":"); Serial.print(wanted[PAD_DOWN]);
-  Serial.print(",\"left\":"); Serial.print(wanted[PAD_LEFT]);
-  Serial.print(",\"right\":"); Serial.print(wanted[PAD_RIGHT]);
-
-  Serial.print(",\"b1\":"); Serial.print(wanted[PAD_L_1]);
-  Serial.print(",\"b2\":"); Serial.print(wanted[PAD_L_2]);
-  Serial.print(",\"b3\":"); Serial.print(wanted[PAD_L_3]);
-
-  Serial.print(",\"b4\":"); Serial.print(wanted[PAD_H_1]);
-  Serial.print(",\"b5\":"); Serial.print(wanted[PAD_H_2]);
-  Serial.print(",\"b6\":"); Serial.print(wanted[PAD_H_3]);
-
-  Serial.print(",\"start\":"); Serial.print(wanted[PAD_START]);
-  Serial.print(",\"select\":"); Serial.print(wanted[PAD_SELECT]);
-
-  Serial.println("}");
-}
-
-void loop() {
-  Usb.Task();
-
-  updateDebounce();
-  updateTurbo();
-
-  if (MappingManager::isRemapping()) return;
-
+void applyOutput() {
   if (outputMode == MODE_HACK_GENERIC) {
     HackPadGeneric::apply();
   } else if (outputMode == MODE_NEOGEO) {
@@ -136,6 +88,106 @@ void loop() {
     PS2Pad::apply();
   } else if (outputMode == MODE_GAMECUBE) {
     GameCube::apply();
+  }
+}
+
+void sendObsState() {
+  static bool initialized = false;
+  static bool lastState[12];
+
+  bool state[12] = {
+    wanted[PAD_UP],
+    wanted[PAD_DOWN],
+    wanted[PAD_LEFT],
+    wanted[PAD_RIGHT],
+
+    wanted[PAD_L_1],
+    wanted[PAD_L_2],
+    wanted[PAD_L_3],
+
+    wanted[PAD_H_1],
+    wanted[PAD_H_2],
+    wanted[PAD_H_3],
+
+    wanted[PAD_START],
+    wanted[PAD_SELECT]
+  };
+
+  bool changed = !initialized;
+
+  if (initialized) {
+    for (uint8_t i = 0; i < 12; i++) {
+      if (state[i] != lastState[i]) {
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  if (!changed) return;
+
+  initialized = true;
+
+  for (uint8_t i = 0; i < 12; i++) {
+    lastState[i] = state[i];
+  }
+
+  Serial.print("{");
+
+  Serial.print("\"up\":");     Serial.print(state[0]);
+  Serial.print(",\"down\":");  Serial.print(state[1]);
+  Serial.print(",\"left\":");  Serial.print(state[2]);
+  Serial.print(",\"right\":"); Serial.print(state[3]);
+
+  Serial.print(",\"b1\":"); Serial.print(state[4]);
+  Serial.print(",\"b2\":"); Serial.print(state[5]);
+  Serial.print(",\"b3\":"); Serial.print(state[6]);
+
+  Serial.print(",\"b4\":"); Serial.print(state[7]);
+  Serial.print(",\"b5\":"); Serial.print(state[8]);
+  Serial.print(",\"b6\":"); Serial.print(state[9]);
+
+  Serial.print(",\"start\":");  Serial.print(state[10]);
+  Serial.print(",\"select\":"); Serial.print(state[11]);
+
+  Serial.println("}");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println("Start");
+
+  MappingManager::init();
+
+  initOutput();
+
+  if (Usb.Init() == -1) {
+    Serial.println("USB Host Shield KO / OSC did not start.");
+    while (1);
+  }
+
+  Serial.println("USB Host Shield OK");
+  delay(200);
+
+  if (!Hid.SetReportParser(0, &Joy)) {
+    ErrorMessage<uint8_t>(PSTR("SetReportParser"), 1);
+  }
+
+  sendObsState();
+}
+
+void loop() {
+  Usb.Task();
+
+  MappingManager::update();
+
+  updateDebounce();
+  updateTurbo();
+
+  if (!MappingManager::isRemapping()) {
+    applyOutput();
   }
 
   sendObsState();

@@ -10,6 +10,9 @@ oldButtons(0)
 
 void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf)
 {
+  // Ignore incomplete reports instead of reading beyond the received buffer.
+  if (!buf || len < RPT_GEMEPAD_LEN) return;
+
   bool match = true;
 
   for (uint8_t i = 0; i < RPT_GEMEPAD_LEN; i++) {
@@ -24,27 +27,35 @@ void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8
     for (uint8_t i = 0; i < RPT_GEMEPAD_LEN; i++) oldPad[i] = buf[i];
   }
 
-  uint8_t hat = buf[5] & 0x0F;
+  // Many generic USB pads expose the D-pad as a POV/hat in the low
+  // nibble of byte 5.  The previous implementation detected it but the
+  // callback was empty, so the cross never reached pad_state.
+  if (len >= 6) {
+    uint8_t hat = buf[5] & 0x0F;
 
-  if (hat != oldHat && joyEvents) {
-    joyEvents->OnHatSwitch(hat);
-    oldHat = hat;
+    if (hat != oldHat && joyEvents) {
+      joyEvents->OnHatSwitch(hat);
+      oldHat = hat;
+    }
   }
 
-  uint16_t buttons = buf[6];
-  buttons <<= 4;
-  buttons |= (buf[5] >> 4);
-  uint16_t changes = buttons ^ oldButtons;
+  // The optional generic HID button field uses bytes 5 and 6.
+  if (len >= 7) {
+    uint16_t buttons = buf[6];
+    buttons <<= 4;
+    buttons |= (buf[5] >> 4);
+    uint16_t changes = buttons ^ oldButtons;
 
-  if (changes) {
-    for (uint8_t i = 0; i < 12; i++) {
-      uint16_t mask = 1 << i;
-      if ((changes & mask) && joyEvents) {
-        if (buttons & mask) joyEvents->OnButtonDn(i + 1);
-        else joyEvents->OnButtonUp(i + 1);
+    if (changes) {
+      for (uint8_t i = 0; i < 12; i++) {
+        uint16_t mask = 1 << i;
+        if ((changes & mask) && joyEvents) {
+          if (buttons & mask) joyEvents->OnButtonDn(i + 1);
+          else joyEvents->OnButtonUp(i + 1);
+        }
       }
+      oldButtons = buttons;
     }
-    oldButtons = buttons;
   }
 }
 
@@ -127,6 +138,24 @@ void JoystickEvents::OnGamePadChanged(const GamePadEventData *evt)
   }
 }
 
-void JoystickEvents::OnHatSwitch(uint8_t hat) { }
+void JoystickEvents::OnHatSwitch(uint8_t hat)
+{
+  // Standard HID POV values:
+  // 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW.
+  // 8 and 15 are commonly used for the neutral position.
+  const bool validDirection = (hat <= 7);
+
+  const bool up = validDirection && (hat == 0 || hat == 1 || hat == 7);
+  const bool right = validDirection && (hat == 1 || hat == 2 || hat == 3);
+  const bool down = validDirection && (hat == 3 || hat == 4 || hat == 5);
+  const bool left = validDirection && (hat == 5 || hat == 6 || hat == 7);
+
+  // Always update all four lines so that returning to neutral releases
+  // every direction, and diagonals work without leaving a direction stuck.
+  pushButton(PAD_UP, up);
+  pushButton(PAD_RIGHT, right);
+  pushButton(PAD_DOWN, down);
+  pushButton(PAD_LEFT, left);
+}
 void JoystickEvents::OnButtonUp(uint8_t but_id) { }
 void JoystickEvents::OnButtonDn(uint8_t but_id) { }
