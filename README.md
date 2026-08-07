@@ -397,3 +397,9 @@ Always verify:
 - console compatibility
 
 before connecting hardware.
+
+## Persistent button remapping (EEPROM)
+
+Custom six-button mappings are now saved automatically in the ATmega328P EEPROM when the remapping sequence is completed. The saved mapping is restored at startup.
+
+The default-mapping shortcut also writes the default layout back to EEPROM. Stored data includes a signature, format version, validation and checksum; invalid or uninitialized EEPROM data falls back to the default mapping automatically.

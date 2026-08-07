@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 #include "mapping_manager.h"
 
 namespace MappingManager {
@@ -7,6 +8,18 @@ enum MappingMode {
   MAPPING_DEFAULT,
   MAPPING_CUSTOM
 };
+
+// EEPROM layout for persistent button mapping.
+// Only the six remappable physical inputs are stored.
+const uint8_t EEPROM_MAGIC_0 = 0x41; // 'A'
+const uint8_t EEPROM_MAGIC_1 = 0x52; // 'R'
+const uint8_t EEPROM_VERSION = 1;
+const int EEPROM_ADDR_MAGIC_0 = 0;
+const int EEPROM_ADDR_MAGIC_1 = 1;
+const int EEPROM_ADDR_VERSION = 2;
+const int EEPROM_ADDR_MAPPING = 3;
+const int EEPROM_ADDR_CHECKSUM = EEPROM_ADDR_MAPPING + 6;
+
 
 // outputToInput[logical output] = physical input.
 // Example: if outputToInput[PAD_H_1] = PAD_L_2,
@@ -42,6 +55,100 @@ const uint8_t remapOrder[] = {
   PAD_H_3, // B3
   PAD_L_3  // B6
 };
+
+void printCurrentMapping();
+
+uint8_t mappingChecksum(const uint8_t values[6])
+{
+  uint8_t checksum = EEPROM_MAGIC_0 ^ EEPROM_MAGIC_1 ^ EEPROM_VERSION;
+
+  for (uint8_t i = 0; i < 6; i++) {
+    checksum ^= values[i];
+  }
+
+  return checksum;
+}
+
+bool isRemappableButton(uint8_t pad)
+{
+  for (uint8_t i = 0; i < 6; i++) {
+    if (remappableButtons[i] == pad) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool isValidStoredMapping(const uint8_t values[6])
+{
+  bool seen[PAD_BUTTON_COUNT] = { false };
+
+  for (uint8_t i = 0; i < 6; i++) {
+    uint8_t pad = values[i];
+
+    if (!isRemappableButton(pad) || seen[pad]) {
+      return false;
+    }
+
+    seen[pad] = true;
+  }
+
+  return true;
+}
+
+void saveMappingToEeprom()
+{
+  uint8_t values[6];
+
+  for (uint8_t i = 0; i < 6; i++) {
+    values[i] = outputToInput[remappableButtons[i]];
+  }
+
+  EEPROM.update(EEPROM_ADDR_MAGIC_0, EEPROM_MAGIC_0);
+  EEPROM.update(EEPROM_ADDR_MAGIC_1, EEPROM_MAGIC_1);
+  EEPROM.update(EEPROM_ADDR_VERSION, EEPROM_VERSION);
+
+  for (uint8_t i = 0; i < 6; i++) {
+    EEPROM.update(EEPROM_ADDR_MAPPING + i, values[i]);
+  }
+
+  EEPROM.update(EEPROM_ADDR_CHECKSUM, mappingChecksum(values));
+  Serial.println("[Mapping] saved to EEPROM");
+}
+
+bool loadMappingFromEeprom()
+{
+  if (EEPROM.read(EEPROM_ADDR_MAGIC_0) != EEPROM_MAGIC_0 ||
+      EEPROM.read(EEPROM_ADDR_MAGIC_1) != EEPROM_MAGIC_1 ||
+      EEPROM.read(EEPROM_ADDR_VERSION) != EEPROM_VERSION) {
+    return false;
+  }
+
+  uint8_t values[6];
+
+  for (uint8_t i = 0; i < 6; i++) {
+    values[i] = EEPROM.read(EEPROM_ADDR_MAPPING + i);
+  }
+
+  if (EEPROM.read(EEPROM_ADDR_CHECKSUM) != mappingChecksum(values) ||
+      !isValidStoredMapping(values)) {
+    return false;
+  }
+
+  for (uint8_t i = 0; i < PAD_BUTTON_COUNT; i++) {
+    outputToInput[i] = i;
+  }
+
+  for (uint8_t i = 0; i < 6; i++) {
+    outputToInput[remappableButtons[i]] = values[i];
+  }
+
+  currentMode = MAPPING_CUSTOM;
+  Serial.println("[Mapping] loaded from EEPROM");
+  printCurrentMapping();
+  return true;
+}
 
 bool comboLatch = false;
 
@@ -177,6 +284,7 @@ void setDefaultMapping(bool withFeedback)
   printCurrentMapping();
 
   if (withFeedback) {
+    saveMappingToEeprom();
     startResetBlink();
   } else {
     resetBlinkActive = false;
@@ -357,6 +465,7 @@ void updateCustomRemap()
 
     Serial.println("[Mapping] custom remap complete");
     printCurrentMapping();
+    saveMappingToEeprom();
     return;
   }
 
@@ -368,7 +477,11 @@ void updateCustomRemap()
 
 void init()
 {
-  setDefaultMapping(false);
+  if (!loadMappingFromEeprom()) {
+    Serial.println("[Mapping] no valid EEPROM mapping, using defaults");
+    setDefaultMapping(false);
+    saveMappingToEeprom();
+  }
 }
 
 void update()
