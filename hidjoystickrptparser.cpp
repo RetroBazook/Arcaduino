@@ -12,7 +12,42 @@ void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8
 {
   if (!buf || len == 0) return;
 
-  // Raw HID diagnostics removed in the normal build.
+  // Raw HID diagnostic: print the complete report only when it changes.
+  // The capture is limited to 32 bytes to keep RAM usage low on the Uno.
+  static uint8_t oldRaw[32];
+  static uint8_t oldRawLen = 0xFF;
+  static bool rawInitialized = false;
+
+  const uint8_t rawLen = (len > sizeof(oldRaw)) ? sizeof(oldRaw) : len;
+  bool rawChanged = !rawInitialized || oldRawLen != rawLen;
+
+  if (!rawChanged) {
+    for (uint8_t i = 0; i < rawLen; i++) {
+      if (oldRaw[i] != buf[i]) {
+        rawChanged = true;
+        break;
+      }
+    }
+  }
+
+  if (rawChanged) {
+    Serial.print(F("HID len="));
+    Serial.print(len);
+    Serial.print(F(" : "));
+
+    for (uint8_t i = 0; i < rawLen; i++) {
+      if (buf[i] < 0x10) Serial.print('0');
+      Serial.print(buf[i], HEX);
+      Serial.print(' ');
+      oldRaw[i] = buf[i];
+    }
+
+    if (len > rawLen) Serial.print(F("... "));
+    Serial.println();
+
+    oldRawLen = rawLen;
+    rawInitialized = true;
+  }
 
   // Ignore incomplete reports for the legacy 5-byte parser.
   if (len < RPT_GEMEPAD_LEN) return;
@@ -35,7 +70,7 @@ void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8
   //
   // The original controller placed the hat in the low nibble of byte 5.
   // The newly tested 8-byte controller places it in byte 2 instead:
-  //   0=N, 2=E, 4=S, 6=W, 15=neutral.
+  //   0=N, 2=E, 4=S, 6=W, 8 or 15=neutral.
   // Prefer byte 2 for that 8-byte report layout, while retaining the
   // byte-5 fallback for older controllers.
   bool hasHat = false;
@@ -43,7 +78,7 @@ void JoystickReportParser::Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8
 
   if (len >= 8) {
     const uint8_t candidate = buf[2] & 0x0F;
-    if (candidate <= 7 || candidate == 0x0F) {
+    if (candidate <= 8 || candidate == 0x0F) {
       hat = candidate;
       hasHat = true;
     }
